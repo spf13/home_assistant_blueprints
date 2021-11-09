@@ -1,0 +1,79 @@
+blueprint:
+  name: Contact Sensor activated Light with sun condition
+  description: Turn on a light when door/window opens after sunset.
+  domain: automation
+  input:
+    contact_sensor: 
+      name: Contact Sensor
+      description: 'The window or door sensor that triggers the automation.'
+      selector: 
+        entity:
+          domain: binary_sensor  
+    light_target:
+      name: Light
+      selector:
+        target:
+          entity:
+            domain: light
+    open_wait:
+      name: Wait time
+      description: Time to leave the light on after open is detected.
+      default: 120
+      selector:
+        number:
+          min: 0
+          max: 3600
+          unit_of_measurement: seconds
+          
+    sunset_offset:
+      name: Offset to turn on lights
+      description: Define offset to sunset
+      default: 60
+      selector:
+        number:
+          min: 0
+          max: 240
+          unit_of_measurement: minutes
+          
+    sunrise_offset:
+      name: Offset to turn off lights
+      description: Define offset to sunrise
+      default: 45
+      selector:
+        number:
+          min: 0
+          max: 240
+          unit_of_measurement: minutes
+
+# If motion is detected within the delay,
+# we restart the script.
+mode: restart
+max_exceeded: silent
+
+trigger:
+  platform: state
+  entity_id: !input contact_sensor
+  from: "off"
+  to: "on"
+  
+condition:
+  - condition: or
+    conditions:
+    - condition: sun
+      after: sunset
+      after_offset: !input sunset_offset
+    - condition: sun
+      before: sunrise
+      before_offset: !input sunrise_offset
+
+action:
+  - service: light.turn_on
+    target: !input light_target
+  - wait_for_trigger:
+      platform: state
+      entity_id: !input contact_sensor
+      from: "on"
+      to: "off"
+  - delay: !input open_wait
+  - service: light.turn_off
+    target: !input light_target
